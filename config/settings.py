@@ -35,7 +35,7 @@ def floofy_config():
 
 
 @__load_env_variables
-def navigate_config():
+def meta_config():
     with open('./config/settings.toml', 'r') as config_toml:
         nav_config = toml.load(config_toml)['meta_pages']
         nav_config['base'] = os.getenv('META', nav_config['base'])

@@ -1,5 +1,7 @@
+from importlib.metadata import files
 import sys
 import os
+from time import sleep
 
 parent_dir = os.path.dirname(os.path.dirname(__file__))
 
@@ -8,7 +10,8 @@ if parent_dir not in sys.path:
 
 
 import asyncio
-import json
+import glob
+import re
 from datetime import datetime
 from typing import Literal, TypedDict
 from pydantic import BaseModel, EmailStr, ValidationError
@@ -31,8 +34,6 @@ class Login(BaseModel):
 
 class Credentials(TypedDict):
     """
-    Typed dictionary to represent user credentials.
-
     This class is used to define the structure of a dictionary holding user credentials,
     specifically containing 'email' and 'password' fields.
 
@@ -58,86 +59,113 @@ class LabSelection(BaseModel):
 
 
 class SiteAutomation:
-    def __init__(self, headless: bool, credentials: Credentials, default_url: str) -> None:
-        self.default_url = default_url
+    def __init__(self, headless: bool, credentials: Credentials, login_url:str, lab:LabSelection) -> None:
         self.headless = headless
+        self.login_url = login_url
+        self.site = lab if lab else 'meta'
         self.browser = None
         self.context = None
         self.page = None
-        pass
+        self.credentials = credentials
+        self.__storage_name = ''
 
 
-    def launch_browser(self):
-        pass
+    async def main(self):
+        async with async_playwright() as p:
+            self.browser = await p.chromium.launch(headless=self.headless)
+            if os.path.exists(self.__storage_name):
+                self.context = await self.browser.new_context(storage_state=self.__storage_name)
+                self. page = await self.context.new_page()
+                await self.navigate(FLOOFY['intake'])
+                await self.page.locator('//*[@id="root"]/div/div[2]/div/div/div[2]/div[1]/div/div[2]/div/div/div[2]/label/span/span').click()
+                await self.screenshot(file_path='test.png')
+                await self.close_browser()
+            else:
+                self.context = await self.browser.new_context()
 
-    def __save_storage_state(self):
-        pass
+                self. page = await self.context.new_page()
+
+                await self.login(username=self.credentials.email,password=self.credentials.password)
+                await self.__validate_login() # find a more efficient way later
+                self.__storage_name = self.__generate_storage_filename(identifier=await self.page.title())
+                await self.__save_storage_state()
+
+
+                await self.navigate(FLOOFY['intake'])
+                
+                await self.page.locator('//*[@id="root"]/div/div[2]/div/div/div[2]/div[1]/div/div[2]/div/div/div[2]/label/span/span').click()
+                text = await self.page.get_by_role('value', name='1').text_content()
+                print(text)
+                
+                await self.screenshot(file_path='test.png')
+                await self.close_browser()
+
     
-    def __load_storage_state(self):
-        pass
 
-    def __del_storage_state(self):
-        if os.path.exists('state.json'):
-            with open('state.json', 'r') as file:
-                cookies = json.load(file)
-                try:
-                    expiry = datetime.utcfromtimestamp(int(cookies['origins'][0]['localStorage'][0]['value']))
-                    if datetime.utcnow() >= expiry:
-                        os.remove('state.json')
-                except (IndexError, KeyError, ValueError) as e:
-                            os.remove('state.json')
-
-        pass
-
-    def __validate_login(self, credentials):  
-        pass
-
-    def login(self):
-        pass
-
-    def screenshot(self):
-        pass
+    async def __save_storage_state(self):
+        if self.__storage_name:
+            await self.context.storage_state(path=self.__storage_name)
 
 
-async def main():
-    async with async_playwright() as p:
-        browser = await p.chromium.launch()
-        context = await browser.new_context()
-        page = await context.new_page()
-
-        # if os.path.exists('state.json'):
-        #     context = await browser.new_context(storage_state='state.json')
-        #     page = await context.new_page()
-        # else:
-        #     context = await browser.new_context()
-        #     page = await context.new_page()
+    async def navigate(self, page ):
+        await self.page.goto(page)
 
 
-        await page.goto(FLOOFY['base'])
-        await page.get_by_label('email').fill(LOGIN.email)
-        await page.get_by_label('password').fill(LOGIN.password)
-        await expect(page.get_by_label('email')).to_have_value(LOGIN.email)
-        await expect(page.get_by_label('password')).to_have_value(LOGIN.password)
-        await page.get_by_role('button', name='Log in').click()
+    
 
-        await expect(page.locator('id=LOGGED_IN_BAR')).to_be_visible()
-        await context.storage_state(path='state.json')
-        await page.goto(FLOOFY['intake'])
-
-        await page.locator('//*[@id="root"]/div/div[2]/div/div/div[2]/div[1]/div/div[2]/div/div/div[2]/label/span/span').click()
-
-        # await asyncio.sleep(5)
-        await page.screenshot(full_page=True, path='test.png')
-        await context.close()
-        await browser.close()
-
+    
+    async def login(self, username:str, password: str):# loaded:str|None = None):
         
+        await self.page.goto(url=self.login_url)
+
+        await self.page.get_by_label(re.compile('(email|username)', re.IGNORECASE)).fill(username)
+        await self.page.get_by_label('password').fill(password)
+
+        await expect(self.page.get_by_label(re.compile('(email|username)', re.IGNORECASE))).to_have_value(username)
+        await expect(self.page.get_by_label('password')).to_have_value(password)
+
+        await self.page.get_by_role('button', name=re.compile('(submit|log in)', re.IGNORECASE)).click()
+           
+
+    
+    async def __validate_login(self): 
+        await expect(self.page.locator('id=LOGGED_IN_BAR')).to_be_visible() 
+
+
+    async def screenshot(self, file_path,):
+        await asyncio.sleep(5)
+        await self.page.screenshot(timeout=50000, full_page=True, path=file_path)
+        
+        
+
+    async def __save_storage_state(self):
+        if self.__storage_name:
+            await self.context.storage_state(path=self.__storage_name)
+    
+ 
+
+
+    async def close_browser(self):
+        if self.context:
+            await self.context.close()
+        if self.browser:
+            await self.browser.close()
+
+    def __generate_storage_filename(self, identifier: str = None) -> str:
+            base_name = identifier if identifier else "storage_state"
+            timestamp = datetime.now().strftime('%Y%m%d')
+            return f"{base_name}_{timestamp}.json"
+    
+    def __del_storage_state(self):
+        if os.path.exists(self.__storage_name):
+            os.remove(self.__storage_name)
+
 
 if __name__ == '__main__':
     import time
     s = time.perf_counter()
-    asyncio.run(main())
+    site = SiteAutomation(headless=False, credentials=LOGIN, login_url= FLOOFY['base'], lab='NY')
+    asyncio.run(site.main())
     elapsed = time.perf_counter() - s
     print(f'{__file__} excute in {elapsed:0.2f} seconds')
-    os.remove('test.png')
-    os.remove('state.json')
+    
