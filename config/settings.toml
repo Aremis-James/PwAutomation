@@ -1,0 +1,22 @@
+[login]
+account_id = 'username'
+account_key = 'password'
+
+[slack]
+channel_id = '#####'
+token = '#######'
+
+[logging]
+filename = 'app.log'
+level = 'logging.INFO'
+format= '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+
+[meta_pages]
+base = 'meta_base'
+allpharm = 'allpharm'
+realtime = 'realtime'
+vet_orders = 'vet_orders'
+
+[floofy_pages]
+base = 'floofy_base'
+intake = 'intake'
