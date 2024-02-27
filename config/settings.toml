@@ -1,6 +1,6 @@
 [login]
-account_id = 'username'
-account_key = 'password'
+email = 'user@name.com'
+password = 'password'
 
 [slack]
 channel_id = '#####'
@@ -19,4 +19,6 @@ vet_orders = 'vet_orders'
 
 [floofy_pages]
 base = 'floofy_base'
-intake = 'intake'
+intake_ny = 'intake'
+intake_fl = 'intake'
+intake_la = 'intake'
