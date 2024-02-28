@@ -1,5 +1,5 @@
 #Ignore
-state.json
+encrypted_data.bin
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

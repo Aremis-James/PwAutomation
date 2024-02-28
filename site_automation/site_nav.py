@@ -1,14 +1,16 @@
+import pickle
 import site
 import sys
 import os
 import asyncio
 import re
 import time
-from pprint import pprint
 from datetime import datetime
 from typing import Literal
 from pydantic import BaseModel
 from playwright.async_api import async_playwright, expect, TimeoutError
+from cryptography.fernet import Fernet
+from dotenv import load_dotenv
 
 parent_dir = os.path.dirname(os.path.dirname(__file__))
 
@@ -17,10 +19,13 @@ if parent_dir not in sys.path:
 
 from config import settings
 
+load_dotenv()
+
 
 LOGIN = settings.login_config
 FLOOFY = settings.floofy_config
 META = settings.meta_config
+KEY_ = os.getenv('ENCRYPTION_KEY').encode()
 
 class LabSelection(BaseModel):
     """Represents the selection of a lab with a specified location."""
@@ -41,15 +46,20 @@ class SiteAutomation:
         self.page = None
         self.__default_path = os.path.join(os.environ['USERPROFILE'], 'Downloads') if os.name == 'nt' else os.path.join(
         os.path.expanduser('~'), 'Downloads')
-        self.__default_folder = None
+        self.__default_folder = 'Queue'
+        self.folder_path = os.path.join(self.__default_path, self.__default_folder)
         self.credentials = credentials
 
 
     async def floofy(self, navigate_to:str, lab:LabSelection,):
+        cipher = Fernet(KEY_)
         async with async_playwright() as p:
             self.browser = await p.chromium.launch(headless=self.headless)
-            if os.path.exists('../automation/mixlabstate.json'):
-                    self.context = await self.browser.new_context(storage_state='mixlabstate.json')
+            if os.path.exists('../automation/encrypted_data.bin'):
+                    with open('../automation/encrypted_data.bin', 'rb') as file:
+                        storage = pickle.loads(cipher.decrypt(file.read()))
+
+                    self.context = await self.browser.new_context(storage_state=storage)
                     await self.context.tracing.start(screenshots=True, snapshots=True)
                     self.page = await self.context.new_page()
             else:
@@ -57,14 +67,17 @@ class SiteAutomation:
                 self.page = await self.context.new_page()
                 await self.login(login_url=self.login_url, username=self.credentials.email, password=self.credentials.password)
                 await expect(self.page.locator('id=LOGGED_IN_BAR')).to_be_visible()
-                await self.context.storage_state(path=f'{(await self.page.title()).lower()}state.json')
+                storage_state = await self.context.storage_state()
+                with open('../automation/encrypted_data.bin', 'wb') as file:
+                    file.write(cipher.encrypt(pickle.dumps(storage_state)))
+
+
             try:
                 await self.navigate(navigate_to)
                 await asyncio.sleep(5)
-                screenshot_path = os.path.join(self.__default_path, f'{lab}floofy.png')
+                screenshot_path = os.path.join(self.folder_path, f'{lab}floofy{datetime.now().strftime("%m%d%y_%I%M")}.png')
                 await self.page.screenshot(full_page=True, path=screenshot_path)
             except TimeoutError as e:
-                asyncio.sleep(5)
                 await self.context.tracing.stop(path='trace.zip')
             finally:
                 await self.close_browser()
@@ -79,7 +92,9 @@ class SiteAutomation:
             await self.login(login_url=self.login_url, username=self.credentials.email, password=self.credentials.password )
             await expect(self.page).to_have_title('Login · Metabase')
             await self.navigate(navigate_to, sleep=2)
-            await self.screenshot(f'meta.png')
+            await asyncio.sleep(7)
+            screenshot_path = os.path.join(self.folder_path, f'meta{datetime.now().strftime("%m%d%y_%I%M")}.png')
+            await self.page.screenshot(full_page=True, path=screenshot_path)
             await self.close_browser()
 
 
@@ -120,24 +135,27 @@ class SiteAutomation:
 
  
 
-# async def main():
-#         s = time.perf_counter()
 
-#         mixlab_meta = SiteAutomation(headless=False, credentials=LOGIN, login_url= META['base'])
-#         mixlab_floofy = SiteAutomation(headless=False, credentials=LOGIN, login_url= FLOOFY['base'])
-
-#         task = [
-#             mixlab_floofy.floofy(FLOOFY['intake_ny'], lab='NY'),
-#             mixlab_meta.meta(META['allpharm'])
-#         ]
-
-#         await asyncio.gather(*task)
-
-#         elapsed = time.perf_counter() - s
-#         print(f'{__file__} excute in {elapsed:0.2f} seconds')
 
 if __name__ == '__main__':
-    site = SiteAutomation(headless=False,credentials=LOGIN, login_url=FLOOFY.base)
-    asyncio.run(site.floofy(FLOOFY.intake_fl, lab='FL'))
-    asyncio.run(site.floofy(FLOOFY.intake_ny, lab='NY'))
+    async def main():
+        s = time.perf_counter()
+
+        mixlab_meta = SiteAutomation(headless=False, credentials=LOGIN, login_url= META.base)
+        mixlab_floofy = SiteAutomation(headless=False, credentials=LOGIN, login_url= FLOOFY.base)
+
+        task = [
+            # mixlab_floofy.floofy(FLOOFY.intake_ny, lab='NY'),
+            mixlab_meta.meta(META.allpharm),
+            mixlab_floofy.floofy(FLOOFY.intake_la, lab='LA')
+        ]
+
+        await asyncio.gather(*task)
+
+        elapsed = time.perf_counter() - s
+        print(f'{__file__} excute in {elapsed:0.2f} seconds')
+
+    asyncio.run(main())
+
+  
     
