@@ -12,6 +12,9 @@ load_dotenv('.env')
 with open('./config/settings.toml', 'r') as config_toml:
     toml_config = toml.load(config_toml)
 
+
+KEY = os.getenv('ENCRYPTION_KEY').encode()
+
 class UserCredentialsConfig(BaseModel):
     """
     Represents user credentials with email and password.
