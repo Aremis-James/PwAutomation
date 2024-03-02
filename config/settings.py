@@ -1,18 +1,12 @@
 import os
-import toml
-import keyring as kr
-from functools import wraps
-from pydantic import BaseModel, EmailStr, HttpUrl
+from pydantic import BaseModel, EmailStr
 from pydantic_settings import BaseSettings
 
 from dotenv import load_dotenv
 
 load_dotenv('.env')
 
-with open('./config/settings.toml', 'r') as config_toml:
-    toml_config = toml.load(config_toml)
-
-
+EMAIL = os.getenv('EMAIL')
 KEY = os.getenv('ENCRYPTION_KEY').encode()
 
 class UserCredentialsConfig(BaseModel):
@@ -60,18 +54,5 @@ class SlackConfig(BaseSettings):
         env_file = '.env'
         extra = "ignore"
 
-
-EMAIL = os.getenv('EMAIL')
-
-login_config = UserCredentialsConfig(email=EMAIL, 
-                                     password= kr.get_password(service_name=os.getenv('SERVICE_ID'),username=EMAIL))
- 
-meta_config = MetaPagesConfig()
-floofy_config = FloofyPagesConfig()
-slack_config = SlackConfig()
-
-
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     pass

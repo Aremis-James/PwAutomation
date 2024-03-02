@@ -1,6 +1,7 @@
 import pytest
 import re
 from playwright.sync_api import Page, expect
+from faker import Faker
 
 
 # def test_has_title(page: Page):

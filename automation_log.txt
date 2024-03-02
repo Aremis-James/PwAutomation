@@ -1,0 +1,28 @@
+2024-03-02 10:36:41 - WARNING - root - Storage file does not exist: ../automation/encrypted_floofydata.bin
+2024-03-02 10:36:45 - INFO - root - Storage State saved , pickled, & encrypted
+2024-03-02 10:36:54 - INFO - root - Screen Shot Saved!
+2024-03-02 10:36:54 - INFO - root - Execution time of main: 13.98006 seconds
+2024-03-02 10:37:24 - INFO - root - Screen Shot Saved!
+2024-03-02 10:37:24 - INFO - root - Execution time of main: 12.65325 seconds
+2024-03-02 10:38:44 - INFO - root - Screen Shot Saved!
+2024-03-02 10:38:44 - INFO - root - Execution time of main: 13.27976 seconds
+2024-03-02 10:49:41 - INFO - root - Screen Shot Saved!
+2024-03-02 10:49:45 - INFO - root - Screen Shot Saved!
+2024-03-02 10:49:45 - INFO - root - Execution time of main: 16.10660 seconds
+2024-03-02 10:49:46 - INFO - root - Screen Shot Saved!
+2024-03-02 10:49:46 - INFO - root - Execution time of main: 17.43082 seconds
+2024-03-02 10:52:29 - WARNING - root - Storage file does not exist: ../automation/encrypted_floofydata.bin
+2024-03-02 10:52:29 - WARNING - root - Storage file does not exist: ../automation/encrypted_floofydata.bin
+2024-03-02 10:52:33 - INFO - root - Storage State saved , pickled, & encrypted
+2024-03-02 10:52:33 - INFO - root - Storage State saved , pickled, & encrypted
+2024-03-02 10:52:40 - INFO - root - Screen Shot Saved!
+2024-03-02 10:52:45 - INFO - root - Screen Shot Saved!
+2024-03-02 10:52:45 - INFO - root - Execution time of main: 17.67450 seconds
+2024-03-02 10:52:46 - INFO - root - Screen Shot Saved!
+2024-03-02 10:52:46 - INFO - root - Execution time of main: 18.99234 seconds
+2024-03-02 10:53:21 - INFO - root - Screen Shot Saved!
+2024-03-02 10:53:21 - INFO - root - Execution time of main: 13.36516 seconds
+2024-03-02 10:53:23 - INFO - root - Screen Shot Saved!
+2024-03-02 10:53:23 - INFO - root - Execution time of main: 15.79842 seconds
+2024-03-02 10:53:24 - INFO - root - Screen Shot Saved!
+2024-03-02 10:53:24 - INFO - root - Execution time of main: 16.95768 seconds

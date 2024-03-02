@@ -1,5 +1,4 @@
 import pickle
-import site
 import sys
 import os
 import asyncio
@@ -7,12 +6,10 @@ import re
 import time
 from datetime import datetime
 from typing import Literal
-import playwright
 from pydantic import BaseModel
 from playwright.async_api import async_playwright, expect, TimeoutError, StorageState
 from cryptography.fernet import Fernet
 from functools import wraps
-import tracemalloc
 
 parent_dir = os.path.dirname(os.path.dirname(__file__))
 
@@ -20,11 +17,15 @@ if parent_dir not in sys.path:
     sys.path.append(parent_dir)
 
 from config import settings
+import logging
+
+# Configure logging
+logging.basicConfig(filename='automation_log.txt', level=logging.INFO,
+                    format='%(asctime)s - %(levelname)s - %(name)s - %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S')
 
 
-LOGIN = settings.login_config
-FLOOFY = settings.floofy_config
-META = settings.meta_config
+
 KEY_ = settings.KEY
 
 class LabSelection(BaseModel):
@@ -39,7 +40,7 @@ def timer(func):
         start = time.perf_counter()
         result = await func(*args, **kwargs)
         end = time.perf_counter() - start
-        print(f"Execution time of {func.__name__}: {end:0.5f} seconds")
+        logging.info(f"Execution time of {func.__name__}: {end:0.5f} seconds")
         return result
     return wrapper
 
@@ -61,35 +62,20 @@ class SiteAutomation:
 
 
 
-    async def launch_context(self, storage:str=None):
-            async with async_playwright() as p:
-                self.browser = await p.chromium.launch(headless=self.headless)
-                if storage:
-                    self.context = await self.browser.new_context(storage_state=storage)
-                else:
-                    self.context = await self.browser.new_context()
-                return self.context
-
-
-
     async def screenshot(self, prefix:str='meta', sleep: int|None=None):
          
             if sleep:
                 await asyncio.sleep(sleep)
-
             screenshot_path = os.path.join(self.folder_path, f'{prefix}mixlab{datetime.now().strftime("%m%d%y_%I%M")}.png')
             await self.page.screenshot(full_page=True, path=screenshot_path)
+            logging.info('Screen Shot Saved!')
 
 
 
     async def __is_logged_in(self):
         """Checks if the user is logged in based on session cookies."""
         cookies = await self.page.context.cookies()
-        # Look for a specific cookie known to be set after login, e.g., a session cookie
-        if len(cookies) != 0:
-                return True
-        else:
-            return False
+        return len(cookies) != 0
 
 
     async def navigate(self, page:str , sleep:int|None=None):
@@ -99,16 +85,16 @@ class SiteAutomation:
         await self.page.goto(page)
 
         
-    async def login(self, username:str, password: str, login_url:str):# loaded:str|None = None):
+    async def login(self, username:str, password: str, login_url:str):
         """Performs login action on the site."""
+        email_or_username = re.compile('(email|username)', re.IGNORECASE)
         await self.page.goto(url=login_url)
-        await self.page.get_by_label(re.compile('(email|username)', re.IGNORECASE)).fill(username)
+        await self.page.get_by_label(email_or_username).fill(username)
         await self.page.get_by_label('password').fill(password)
-        await expect(self.page.get_by_label(re.compile('(email|username)', re.IGNORECASE))).to_have_value(username)
+        await expect(self.page.get_by_label(email_or_username)).to_have_value(username)
         await expect(self.page.get_by_label('password')).to_have_value(password)
         await self.page.get_by_role('button', name=re.compile('(sign in|log in)', re.IGNORECASE)).click()
            
-    
     
     async def close_browser(self):
         """Closes the browser and all associated contexts."""
@@ -117,18 +103,39 @@ class SiteAutomation:
         if self.browser:
             await self.browser.close()
 
-    def save_storage(self, state: StorageState):
+
+    def save_storage(self, prefix: str, state: StorageState):
         cipher = Fernet(KEY_)
-        with open('../automation/encrypted_data.bin', 'wb') as file:
+        with open(f'../automation/encrypted_{prefix}data.bin', 'wb') as file:
                     file.write(cipher.encrypt(pickle.dumps(state)))
+                    logging.info(f'Storage State saved , pickled, & encrypted')
 
 
-    def load_storage(self):
+    def load_storage(self, prefix: str):
         cipher = Fernet(KEY_)
-        if os.path.exists('../automation/encrypted_data.bin'):
-                    with open('../automation/encrypted_data.bin', 'rb') as file:
-                        storage = pickle.loads(cipher.decrypt(file.read()))
-        return storage
+        storage_path = f'../automation/encrypted_{prefix}data.bin'
+        if os.path.exists(storage_path):
+            with open(storage_path, 'rb') as file:
+                encrytped_file = file.read()
+                try:
+                    storage = pickle.loads(cipher.decrypt(encrytped_file))
+                    valid_cookie = next(
+                         (cookie for cookie in storage['cookies'] if datetime.utcnow() < datetime.utcfromtimestamp(cookie['expires'])),
+                         None
+                    )
+                    if valid_cookie: 
+                         return storage 
+
+                    else: 
+                         os.remove(storage_path)
+                         logging.info("Expired session storage removed.")
+                   
+                except Exception as e:
+                     logging.error(f"Error decrypting or unpickling storage data: {e}")
+        else:
+             logging.warning(f"Storage file does not exist: {storage_path}")
+                             
+        return None
 
 
 
@@ -136,8 +143,10 @@ class MetaAutomation(SiteAutomation):
     def __init__(self, headless: bool, credentials: settings.UserCredentialsConfig) -> None:
         super().__init__(headless, credentials)
 
+    
 
-    # @timer
+
+    @timer
     async def main(self, start_url:str, navigate_to:str):
            async with async_playwright() as p:
                 self.browser = await p.chromium.launch(headless=self.headless)
@@ -156,13 +165,27 @@ class FloofyAutomation(SiteAutomation):
     def __init__(self, headless: bool, credentials: settings.UserCredentialsConfig) -> None:
         super().__init__(headless, credentials)
 
+    async def __nonzero_intake(self, selector:str):
+        ''' Wait for the element's content to change from 'Intake(0) '''
+        await self.page.wait_for_function(f"""
+            () => {{
+                const el = document.querySelector('{selector}');
+                if (!el) return false;
+                const text = el.textContent.trim();
+                return text !== 'Intake(0)';
+            }}
+            """)
+        return True
+         
 
-    # @timer
+
+    @timer
     async def main(self, start_url:str, navigate_to:str, prefix:LabSelection):
         async with async_playwright() as p:
             self.browser = await p.chromium.launch(headless=self.headless)
-            if self.load_storage():
-                    self.context = await self.browser.new_context(storage_state=self.load_storage())
+            storage_state = self.load_storage('floofy')
+            if storage_state:
+                    self.context = await self.browser.new_context(storage_state=storage_state)
                     await self.context.tracing.start(screenshots=True, snapshots=True)
                     self.page = await self.context.new_page()
             else:
@@ -170,43 +193,19 @@ class FloofyAutomation(SiteAutomation):
                 self.page = await self.context.new_page()
                 await self.login(login_url=start_url, username=self.credentials.email, password=self.credentials.password)
                 await expect(self.page.locator('id=LOGGED_IN_BAR')).to_be_visible()
-                self.save_storage(await self.context.storage_state())
+                cookies = await self.context.storage_state()
+                self.save_storage('floofy', await self.context.storage_state())
 
             try:
                 await self.navigate(navigate_to)
-                await self.screenshot(prefix=prefix, sleep=5)
+                selector = 'h2.text-2xl.font-brown-pro.leading-normal.text-gracy-100'
+                if await self.__nonzero_intake(selector):
+                    await self.screenshot(prefix=prefix, sleep=5)
             except TimeoutError as e:
+                logging.error(f'Timeout {e}')
                 await self.context.tracing.stop(path='trace.zip')
             finally:
                 await self.close_browser()
         
-
- 
-
-
-
 if __name__ == '__main__':
-    # LA = FloofyAutomation(headless=False, credentials=LOGIN)
-    # asyncio.run(LA.main(FLOOFY.base,FLOOFY.intake_la,prefix='LA'))
-    async def main():
-        s = time.perf_counter()
-
-        LA = FloofyAutomation(headless=False, credentials=LOGIN)
-        NY = FloofyAutomation(headless=False, credentials=LOGIN)
-        meta = MetaAutomation(headless=False, credentials=LOGIN)
-
-        task = [
-            LA.main(FLOOFY.base,FLOOFY.intake_la,'LA'),
-            NY.main(FLOOFY.base,FLOOFY.intake_ny,'NY'),
-            meta.main(META.base,META.allpharm)
-        ]
-
-        await asyncio.gather(*task)
-
-        elapsed = time.perf_counter() - s
-        print(f'{__file__} excute in {elapsed:0.2f} seconds')
-
-    asyncio.run(main())
-
-  
-    
+     pass

@@ -2,18 +2,14 @@ import toml
 import os
 import sys
 from dotenv import load_dotenv
-
-from site_automation.site_nav import FLOOFY
+from faker import Faker
 
 parent_dir = os.path.dirname(os.path.dirname(__file__))
 
 if parent_dir not in sys.path:
     sys.path.append(parent_dir)
 
-from config.settings import login_config, floofy_config, meta_config
 
-with open('./config/settings.toml','r') as toml_test:
-    config = toml.load(toml_test)
 
     ###   Test Toml files before updating ###
 
