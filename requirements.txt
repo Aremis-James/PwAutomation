@@ -1,12 +1,16 @@
 annotated-types==0.6.0
 beautifulsoup4==4.12.3
+certifi==2024.2.2
 cffi==1.16.0
+charset-normalizer==3.3.2
 colorama==0.4.6
 cryptography==42.0.5
 dnspython==2.6.1
+doppler-sdk==1.2.1
 email-validator==2.1.0.post1
 Faker==23.3.0
 greenlet==3.0.3
+http-exceptions==0.2.10
 idna==3.6
 importlib-metadata==7.0.1
 iniconfig==2.0.0
@@ -28,6 +32,9 @@ python-dateutil==2.8.2
 python-dotenv==1.0.1
 pytz==2024.1
 pywin32-ctypes==0.2.2
+PyYAML==6.0.1
+requests==2.31.0
+responses==0.25.0
 schedule==1.2.1
 six==1.16.0
 slack_sdk==3.27.1
@@ -37,4 +44,5 @@ tomlkit==0.12.3
 typing_extensions==4.10.0
 typish==1.9.3
 tzdata==2024.1
+urllib3==2.2.1
 zipp==3.17.0
