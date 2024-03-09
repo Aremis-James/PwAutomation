@@ -48,9 +48,7 @@ async def main():
         logging.info(f'{__file__} excute in {elapsed:0.2f} seconds')
         return results
 
- 
-def run_tasks():
-     asyncio.run(main())
+
 
 if __name__ == '__main__':
     slack = SlackComs(token=SLACK_TOKEN, channel=CHANNEL)
