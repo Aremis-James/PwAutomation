@@ -1,5 +1,5 @@
 import os
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, SecretStr
 from pydantic_settings import BaseSettings
 
 from dotenv import load_dotenv
@@ -55,4 +55,4 @@ class SlackConfig(BaseSettings):
         extra = "ignore"
 
 if __name__ == "__main__":
-    pass
+    print(os.listdir())

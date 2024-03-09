@@ -69,6 +69,7 @@ class SiteAutomation:
             screenshot_path = os.path.join(self.folder_path, f'{prefix}mixlab{datetime.now().strftime("%m%d%y_%I%M")}.png')
             await self.page.screenshot(full_page=True, path=screenshot_path)
             logging.info('Screen Shot Saved!')
+            return screenshot_path
 
 
 
@@ -146,8 +147,9 @@ class MetaAutomation(SiteAutomation):
     
 
 
-    @timer
+    # @timer
     async def main(self, start_url:str, navigate_to:str):
+           html = ''
            async with async_playwright() as p:
                 self.browser = await p.chromium.launch(headless=self.headless)
                 self.context = await self.browser.new_context()
@@ -156,8 +158,11 @@ class MetaAutomation(SiteAutomation):
                 await self.login(login_url=start_url, username=self.credentials.email, password=self.credentials.password )
                 await expect(self.page).to_have_title('Login · Metabase')
                 await self.navigate(navigate_to, sleep=2)
-                await self.screenshot(sleep=7)
+                path = await self.screenshot(sleep=7)
+                html = await self.page.content()
+
                 await self.close_browser()
+                return html, path
 
 
 
@@ -179,8 +184,9 @@ class FloofyAutomation(SiteAutomation):
          
 
 
-    @timer
+    # @timer
     async def main(self, start_url:str, navigate_to:str, prefix:LabSelection):
+        html = ''
         async with async_playwright() as p:
             self.browser = await p.chromium.launch(headless=self.headless)
             storage_state = self.load_storage('floofy')
@@ -200,12 +206,14 @@ class FloofyAutomation(SiteAutomation):
                 await self.navigate(navigate_to)
                 selector = 'h2.text-2xl.font-brown-pro.leading-normal.text-gracy-100'
                 if await self.__nonzero_intake(selector):
-                    await self.screenshot(prefix=prefix, sleep=5)
+                    path = await self.screenshot(prefix=prefix, sleep=5)
+                    html = await self.page.content()
             except TimeoutError as e:
                 logging.error(f'Timeout {e}')
                 await self.context.tracing.stop(path='trace.zip')
             finally:
                 await self.close_browser()
+                return html, path
         
-if __name__ == '__main__':
-     pass
+if __name__ == '__main__':  
+    pass
