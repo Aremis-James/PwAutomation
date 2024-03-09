@@ -1,13 +1,26 @@
 import os
-from pydantic import BaseModel, EmailStr, SecretStr
+from pydantic import BaseModel, EmailStr
 from pydantic_settings import BaseSettings
-
+from dopplersdk import DopplerSDK
 from dotenv import load_dotenv
 
 load_dotenv('.env')
 
-EMAIL = os.getenv('EMAIL')
-KEY = os.getenv('ENCRYPTION_KEY').encode()
+
+def doppler_config_secrets(secret_name:str, project:str = 'mixlab-scrapper', dev_config:str = 'dev_aremis-james'):
+    _sdk = DopplerSDK()
+    _sdk.set_access_token(os.getenv('DOPPLER_TOKEN'))
+    results = _sdk.secrets.get(
+         project=project,
+         config=dev_config,
+         name=secret_name
+    )
+    return vars(results)['value']['raw']
+
+EMAIL = doppler_config_secrets('EMAIL')
+
+KEY = doppler_config_secrets('ENCRYPTION_KEY').encode()
+
 
 class UserCredentialsConfig(BaseModel):
     """
@@ -53,6 +66,7 @@ class SlackConfig(BaseSettings):
         env_prefix = 'SLACK_'
         env_file = '.env'
         extra = "ignore"
+
 
 if __name__ == "__main__":
     print(os.listdir())

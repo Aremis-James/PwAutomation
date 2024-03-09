@@ -5,9 +5,11 @@ import os
 import time
 import schedule
 import keyring as kr
+from dopplersdk import DopplerSDK
 from dotenv import load_dotenv
-from communication.slackbot import SlackComs 
-from config.settings import UserCredentialsConfig,  MetaPagesConfig, FloofyPagesConfig, EMAIL
+from pprint import pprint
+from communication.slackbot import SlackComs
+from config.settings import UserCredentialsConfig,  MetaPagesConfig, FloofyPagesConfig, EMAIL, doppler_config_secrets
 from site_automation.navigation import FloofyAutomation, MetaAutomation
 
 
@@ -18,11 +20,14 @@ logging.basicConfig(filename='automation_log.txt', level=logging.INFO,
                     datefmt='%Y-%m-%d %H:%M:%S')
 
 
-PASSWORD = kr.get_password(service_name=os.getenv('SERVICE_ID'),username=EMAIL)
+SERVICE_ID = doppler_config_secrets('SERVICE_ID')
+PASSWORD = kr.get_password(service_name=SERVICE_ID,
+                           username=EMAIL)
+
 LOGIN = UserCredentialsConfig(email=EMAIL, password=PASSWORD)
 META = MetaPagesConfig()
 FLOOFY = FloofyPagesConfig()
-SLACK_TOKEN = os.getenv('SLACK_TOKEN')
+SLACK_TOKEN = doppler_config_secrets('SLACK_TOKEN')
 CHANNEL = os.getenv('SLACK_CHANNEL_ID')
 
 async def main():
@@ -52,6 +57,19 @@ def run_tasks():
      asyncio.run(main())
 
 if __name__ == '__main__':
+    # sdk = DopplerSDK()  
+    # sdk.set_access_token('dp.st.dev_aremis-james.nFdJjuieucmmqvnkKDARlo0pcNyErsQoZImaBVn8uuO')
+
+    # results = sdk.secrets.get(
+    #      project='mixlab-scrapper',
+    #      config='dev_aremis-james',
+    #      name='EMAIL'
+
+    # )
+
+    # pprint(vars(results)['value']['raw'])
+
+
     slack = SlackComs(token=SLACK_TOKEN, channel=CHANNEL)
     results = asyncio.run(main())
     if results:
