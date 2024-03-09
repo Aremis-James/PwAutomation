@@ -23,13 +23,14 @@ LOGIN = UserCredentialsConfig(email=EMAIL, password=PASSWORD)
 META = MetaPagesConfig()
 FLOOFY = FloofyPagesConfig()
 SLACK_TOKEN = os.getenv('SLACK_TOKEN')
+CHANNEL = os.getenv('SLACK_CHANNEL_ID')
 
 async def main():
         s = time.perf_counter()
 
-        LA = FloofyAutomation(headless=False, credentials=LOGIN)
-        NY = FloofyAutomation(headless=False, credentials=LOGIN)
-        meta = MetaAutomation(headless=False, credentials=LOGIN)
+        LA = FloofyAutomation(headless=True, credentials=LOGIN)
+        NY = FloofyAutomation(headless=True, credentials=LOGIN)
+        meta = MetaAutomation(headless=True, credentials=LOGIN)
 
         task = [
             LA.main(FLOOFY.base,FLOOFY.intake_la,'LA'),
@@ -51,12 +52,11 @@ def run_tasks():
      asyncio.run(main())
 
 if __name__ == '__main__':
-    slack = SlackComs(token=SLACK_TOKEN, channel=os.getenv('SLACK_CHANNEL_ID'))
+    slack = SlackComs(token=SLACK_TOKEN, channel=CHANNEL)
     results = asyncio.run(main())
     if results:
-        la, ny, meta = results
-    for index in range(len(results)):
-        slack.upload(results[index][1], 'Test_Screenshot', 'Test')
+        for index in range(len(results)):
+            slack.upload(results[index][1])
 
 
     # weekdays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
